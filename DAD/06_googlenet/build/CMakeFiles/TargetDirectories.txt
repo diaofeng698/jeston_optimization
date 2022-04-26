@@ -1,3 +1,0 @@
-/home/fdiao/Downloads/TensorRT-8.2.1.8/samples/python/int8_caffe_mnist/DAD/06_googlenet/build/CMakeFiles/rebuild_cache.dir
-/home/fdiao/Downloads/TensorRT-8.2.1.8/samples/python/int8_caffe_mnist/DAD/06_googlenet/build/CMakeFiles/edit_cache.dir
-/home/fdiao/Downloads/TensorRT-8.2.1.8/samples/python/int8_caffe_mnist/DAD/06_googlenet/build/CMakeFiles/googlenet.dir
