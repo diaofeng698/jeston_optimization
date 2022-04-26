@@ -1,0 +1,25 @@
+#
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations")
+# 3part lib
+find_package(CUDA REQUIRED)
+list(APPEND ALL_LIBS 
+  ${CUDA_LIBRARIES} 
+  ${CUDA_cublas_LIBRARY} 
+  ${CUDA_nppc_LIBRARY} ${CUDA_nppig_LIBRARY} ${CUDA_nppidei_LIBRARY} ${CUDA_nppial_LIBRARY} ${CUDA_nppicc_LIBRARY})
+list(APPEND INCLUDE_DRIS ${CUDA_INCLUDE_DIRS})
+# message(FATAL_ERROR "CUDA_npp_LIBRARY: ${CUDA_npp_LIBRARY}")
+
+# TensorRT lib
+set(TensorRT_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/../TensorRT)
+find_library(TRT_NVINFER NAMES nvinfer HINTS ${TensorRT_ROOT} PATH_SUFFIXES lib lib64 lib/x64)
+find_library(TRT_NVINFER_PLUGIN NAMES nvinfer_plugin HINTS ${TensorRT_ROOT} PATH_SUFFIXES lib lib64 lib/x64)
+find_library(TRT_NVONNX_PARSER NAMES nvonnxparser HINTS ${TensorRT_ROOT} PATH_SUFFIXES lib lib64 lib/x64)
+find_library(TRT_NVCAFFE_PARSER NAMES nvcaffe_parser HINTS ${TensorRT_ROOT} PATH_SUFFIXES lib lib64 lib/x64)
+find_path(TENSORRT_INCLUDE_DIR NAMES NvInfer.h HINTS ${TensorRT_ROOT} PATH_SUFFIXES include)
+list(APPEND ALL_LIBS ${TRT_NVINFER} ${TRT_NVINFER_PLUGIN} ${TRT_NVONNX_PARSER} ${TRT_NVCAFFE_PARSER})
+list(APPEND INCLUDE_DRIS ${TENSORRT_INCLUDE_DIR})
+
+set(SAMPLES_COMMON_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../common)
+list(APPEND INCLUDE_DRIS ${SAMPLES_COMMON_DIR})
+
+message(STATUS "ALL_LIBS: ${ALL_LIBS}")
