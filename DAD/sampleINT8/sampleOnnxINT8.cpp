@@ -22,9 +22,9 @@
 //! Command: ./sample_onnx_mnist [-h or --help] [-d=/path/to/data/dir or --datadir=/path/to/data/dir]
 //! [--useDLACore=<int>]
 //!
-
 #include "argsParser.h"
 #include "buffers.h"
+#include "calibrator.h"
 #include "common.h"
 #include "logger.h"
 #include "parserOnnxConfig.h"
@@ -39,6 +39,12 @@
 #include <sstream>
 
 using samplesCommon::SampleUniquePtr;
+struct SampleINT8Params : public samplesCommon::OnnxSampleParams
+{
+    int nbCalBatches;        //!< The number of batches for calibration
+    int calBatchSize;        //!< The calibration batch size
+    std::string networkName; //!< The name of the network
+};
 
 const std::string gSampleName = "TensorRT.sample_onnx_mnist";
 
@@ -49,14 +55,14 @@ const std::string gSampleName = "TensorRT.sample_onnx_mnist";
 class SampleOnnxMNIST
 {
   public:
-    SampleOnnxMNIST(const samplesCommon::OnnxSampleParams &params) : mParams(params), mEngine(nullptr)
+    SampleOnnxMNIST(const SampleINT8Params &params) : mParams(params), mEngine(nullptr)
     {
     }
 
     //!
     //! \brief Function builds the network engine
     //!
-    bool build();
+    bool build(DataType dataType);
 
     //!
     //! \brief Runs the TensorRT inference engine for this sample
@@ -64,7 +70,7 @@ class SampleOnnxMNIST
     bool infer(std::string file_name);
 
   private:
-    samplesCommon::OnnxSampleParams mParams; //!< The parameters for the sample.
+    SampleINT8Params mParams; //!< The parameters for the sample.
 
     nvinfer1::Dims mInputDims;  //!< The dimensions of the input to the network.
     nvinfer1::Dims mOutputDims; //!< The dimensions of the output to the network.
@@ -82,7 +88,7 @@ class SampleOnnxMNIST
     bool constructNetwork(SampleUniquePtr<nvinfer1::IBuilder> &builder,
                           SampleUniquePtr<nvinfer1::INetworkDefinition> &network,
                           SampleUniquePtr<nvinfer1::IBuilderConfig> &config,
-                          SampleUniquePtr<nvonnxparser::IParser> &parser);
+                          SampleUniquePtr<nvonnxparser::IParser> &parser, DataType dataType);
 
     //!
     //! \brief Reads the input  and stores the result in a managed buffer
@@ -103,7 +109,7 @@ class SampleOnnxMNIST
 //!
 //! \return Returns true if the engine was created successfully and false otherwise
 //!
-bool SampleOnnxMNIST::build()
+bool SampleOnnxMNIST::build(DataType dataType)
 {
     auto builder = SampleUniquePtr<nvinfer1::IBuilder>(nvinfer1::createInferBuilder(sample::gLogger.getTRTLogger()));
     if (!builder)
@@ -111,6 +117,11 @@ bool SampleOnnxMNIST::build()
         return false;
     }
 
+    if ((dataType == DataType::kINT8 && !builder->platformHasFastInt8()) ||
+        (dataType == DataType::kHALF && !builder->platformHasFastFp16()))
+    {
+        return false;
+    }
     const auto explicitBatch = 1U << static_cast<uint32_t>(NetworkDefinitionCreationFlag::kEXPLICIT_BATCH);
     auto network = SampleUniquePtr<nvinfer1::INetworkDefinition>(builder->createNetworkV2(explicitBatch));
 
@@ -132,7 +143,7 @@ bool SampleOnnxMNIST::build()
         return false;
     }
 
-    auto constructed = constructNetwork(builder, network, config, parser);
+    auto constructed = constructNetwork(builder, network, config, parser, dataType);
     if (!constructed)
     {
         return false;
@@ -206,7 +217,7 @@ bool SampleOnnxMNIST::build()
 bool SampleOnnxMNIST::constructNetwork(SampleUniquePtr<nvinfer1::IBuilder> &builder,
                                        SampleUniquePtr<nvinfer1::INetworkDefinition> &network,
                                        SampleUniquePtr<nvinfer1::IBuilderConfig> &config,
-                                       SampleUniquePtr<nvonnxparser::IParser> &parser)
+                                       SampleUniquePtr<nvonnxparser::IParser> &parser, DataType dataType)
 {
     auto parsed = parser->parseFromFile(locateFile(mParams.onnxFileName, mParams.dataDirs).c_str(),
                                         static_cast<int>(sample::gLogger.getReportableSeverity()));
@@ -215,18 +226,42 @@ bool SampleOnnxMNIST::constructNetwork(SampleUniquePtr<nvinfer1::IBuilder> &buil
         return false;
     }
 
-    config->setMaxWorkspaceSize(16_MiB);
-    if (mParams.fp16)
-    {
-        config->setFlag(BuilderFlag::kFP16);
-    }
-    if (mParams.int8)
+    network->markOutput(*network->getOutput(0));
+
+    // Calibrator life time needs to last until after the engine is built.
+
+    config->setAvgTimingIterations(1);
+    config->setMinTimingIterations(1);
+    config->setMaxWorkspaceSize(1_GiB);
+    if (dataType == DataType::kINT8)
     {
         config->setFlag(BuilderFlag::kINT8);
         samplesCommon::setAllDynamicRanges(network.get(), 127.0f, 127.0f);
     }
 
-    samplesCommon::enableDLA(builder.get(), config.get(), mParams.dlaCore);
+    builder->setMaxBatchSize(mParams.batchSize);
+
+    if (dataType == DataType::kINT8)
+    {
+
+        Int8EntropyCalibrator2 *calibrator = new Int8EntropyCalibrator2(
+            mParams.batchSize, inputW, inputH,
+            "/home/fdiao/Downloads/TensorRT-8.2.1.8/samples/python/int8_caffe_mnist/SF_dataset/",
+            "../model/mobilenetint8.cache", "input_1:0", false);
+        config->setInt8Calibrator(calibrator);
+    }
+
+    if (mParams.dlaCore >= 0)
+    {
+        samplesCommon::enableDLA(builder.get(), config.get(), mParams.dlaCore);
+        if (mParams.batchSize > builder->getMaxDLABatchSize())
+        {
+            sample::gLogError << "Requested batch size " << mParams.batchSize
+                              << " is greater than the max DLA batch size of " << builder->getMaxDLABatchSize()
+                              << ". Reducing batch size accordingly." << std::endl;
+            return false;
+        }
+    }
 
     return true;
 }
@@ -396,9 +431,9 @@ bool SampleOnnxMNIST::verifyOutput(const samplesCommon::BufferManager &buffers)
 //!
 //! \brief Initializes members of the params struct using the command line args
 //!
-samplesCommon::OnnxSampleParams initializeSampleParams(const samplesCommon::Args &args)
+SampleINT8Params initializeSampleParams(const samplesCommon::Args &args)
 {
-    samplesCommon::OnnxSampleParams params;
+    SampleINT8Params params;
     if (args.dataDirs.empty()) //!< Use default directories if user hasn't provided directory paths
     {
         params.dataDirs.push_back("data/mnist/");
@@ -421,6 +456,8 @@ samplesCommon::OnnxSampleParams initializeSampleParams(const samplesCommon::Args
     params.dlaCore = args.useDLACore;
     params.int8 = args.runInInt8;
     params.fp16 = args.runInFp16;
+    params.batchSize = 1;
+    params.calBatchSize = 1;
 
     return params;
 }
@@ -468,8 +505,9 @@ int main(int argc, char **argv)
     SampleOnnxMNIST sample(initializeSampleParams(args));
 
     sample::gLogInfo << "Building and running a GPU inference engine for Onnx MNIST" << std::endl;
+    std::vector<DataType> dataTypes = {DataType::kINT8};
 
-    if (!sample.build())
+    if (!sample.build(dataTypes[1]))
     {
         return sample::gLogger.reportFail(sampleTest);
     }
