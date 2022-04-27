@@ -14,7 +14,7 @@ class Int8EntropyCalibrator2 : public nvinfer1::IInt8EntropyCalibrator2
 {
   public:
     Int8EntropyCalibrator2(int batchsize, int input_w, int input_h, const char *img_dir, const char *calib_table_name,
-                           const char *input_blob_name, bool read_cache = true);
+                           const char *input_blob_name, bool read_cache = true, int classes_num = 10);
 
     virtual ~Int8EntropyCalibrator2();
     int getBatchSize() const noexcept;
@@ -35,6 +35,7 @@ class Int8EntropyCalibrator2 : public nvinfer1::IInt8EntropyCalibrator2
     bool read_cache_;
     void *device_input_;
     std::vector<char> calib_cache_;
+    int classes_num;
 };
 
 #endif // ENTROPY_CALIBRATOR_H

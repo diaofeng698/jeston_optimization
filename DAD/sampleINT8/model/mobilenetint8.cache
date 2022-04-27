@@ -1,0 +1,72 @@
+TRT-8201-EntropyCalibration2
+input_1:0: 3f800000
+StatefulPartitionedCall/model/conv1/Conv2D__6:0: 3f800000
+StatefulPartitionedCall/model/conv1_bn/FusedBatchNormV3:0: 3f800000
+StatefulPartitionedCall/model/conv1_relu/Relu6:0: 3f800000
+StatefulPartitionedCall/model/conv_dw_1_bn/FusedBatchNormV3:0: 3f800000
+StatefulPartitionedCall/model/conv_dw_1_relu/Relu6:0: 3f800000
+StatefulPartitionedCall/model/conv_pw_1_bn/FusedBatchNormV3:0: 3f800000
+StatefulPartitionedCall/model/conv_pw_1_relu/Relu6:0: 3f800000
+StatefulPartitionedCall/model/conv_pad_2/Pad:0: 3f800000
+StatefulPartitionedCall/model/conv_dw_2_bn/FusedBatchNormV3:0: 3f800000
+StatefulPartitionedCall/model/conv_dw_2_relu/Relu6:0: 3f800000
+StatefulPartitionedCall/model/conv_pw_2_bn/FusedBatchNormV3:0: 3f800000
+StatefulPartitionedCall/model/conv_pw_2_relu/Relu6:0: 3f800000
+StatefulPartitionedCall/model/conv_dw_3_bn/FusedBatchNormV3:0: 3f800000
+StatefulPartitionedCall/model/conv_dw_3_relu/Relu6:0: 3f800000
+StatefulPartitionedCall/model/conv_pw_3_bn/FusedBatchNormV3:0: 3f800000
+StatefulPartitionedCall/model/conv_pw_3_relu/Relu6:0: 3f800000
+StatefulPartitionedCall/model/conv_pad_4/Pad:0: 3f800000
+StatefulPartitionedCall/model/conv_dw_4_bn/FusedBatchNormV3:0: 3f800000
+StatefulPartitionedCall/model/conv_dw_4_relu/Relu6:0: 3f800000
+StatefulPartitionedCall/model/conv_pw_4_bn/FusedBatchNormV3:0: 3f800000
+StatefulPartitionedCall/model/conv_pw_4_relu/Relu6:0: 3f800000
+StatefulPartitionedCall/model/conv_dw_5_bn/FusedBatchNormV3:0: 3f800000
+StatefulPartitionedCall/model/conv_dw_5_relu/Relu6:0: 3f800000
+StatefulPartitionedCall/model/conv_pw_5_bn/FusedBatchNormV3:0: 3f800000
+StatefulPartitionedCall/model/conv_pw_5_relu/Relu6:0: 3f800000
+StatefulPartitionedCall/model/conv_pad_6/Pad:0: 3f800000
+StatefulPartitionedCall/model/conv_dw_6_bn/FusedBatchNormV3:0: 3f800000
+StatefulPartitionedCall/model/conv_dw_6_relu/Relu6:0: 3f800000
+StatefulPartitionedCall/model/conv_pw_6_bn/FusedBatchNormV3:0: 3f800000
+StatefulPartitionedCall/model/conv_pw_6_relu/Relu6:0: 3f800000
+StatefulPartitionedCall/model/conv_dw_7_bn/FusedBatchNormV3:0: 3f800000
+StatefulPartitionedCall/model/conv_dw_7_relu/Relu6:0: 3f800000
+StatefulPartitionedCall/model/conv_pw_7_bn/FusedBatchNormV3:0: 3f800000
+StatefulPartitionedCall/model/conv_pw_7_relu/Relu6:0: 3f800000
+StatefulPartitionedCall/model/conv_dw_8_bn/FusedBatchNormV3:0: 3f800000
+StatefulPartitionedCall/model/conv_dw_8_relu/Relu6:0: 3f800000
+StatefulPartitionedCall/model/conv_pw_8_bn/FusedBatchNormV3:0: 3f800000
+StatefulPartitionedCall/model/conv_pw_8_relu/Relu6:0: 3f800000
+StatefulPartitionedCall/model/conv_dw_9_bn/FusedBatchNormV3:0: 3f800000
+StatefulPartitionedCall/model/conv_dw_9_relu/Relu6:0: 3f800000
+StatefulPartitionedCall/model/conv_pw_9_bn/FusedBatchNormV3:0: 3f800000
+StatefulPartitionedCall/model/conv_pw_9_relu/Relu6:0: 3f800000
+StatefulPartitionedCall/model/conv_dw_10_bn/FusedBatchNormV3:0: 3f800000
+StatefulPartitionedCall/model/conv_dw_10_relu/Relu6:0: 3f800000
+StatefulPartitionedCall/model/conv_pw_10_bn/FusedBatchNormV3:0: 3f800000
+StatefulPartitionedCall/model/conv_pw_10_relu/Relu6:0: 3f800000
+StatefulPartitionedCall/model/conv_dw_11_bn/FusedBatchNormV3:0: 3f800000
+StatefulPartitionedCall/model/conv_dw_11_relu/Relu6:0: 3f800000
+StatefulPartitionedCall/model/conv_pw_11_bn/FusedBatchNormV3:0: 3f800000
+StatefulPartitionedCall/model/conv_pw_11_relu/Relu6:0: 3f800000
+StatefulPartitionedCall/model/conv_pad_12/Pad:0: 3f800000
+StatefulPartitionedCall/model/conv_dw_12_bn/FusedBatchNormV3:0: 3f800000
+StatefulPartitionedCall/model/conv_dw_12_relu/Relu6:0: 3f800000
+StatefulPartitionedCall/model/conv_pw_12_bn/FusedBatchNormV3:0: 3f800000
+StatefulPartitionedCall/model/conv_pw_12_relu/Relu6:0: 3f800000
+StatefulPartitionedCall/model/conv_dw_13_bn/FusedBatchNormV3:0: 3f800000
+StatefulPartitionedCall/model/conv_dw_13_relu/Relu6:0: 3f800000
+StatefulPartitionedCall/model/conv_pw_13_bn/FusedBatchNormV3:0: 3f800000
+StatefulPartitionedCall/model/conv_pw_13_relu/Relu6:0: 3f800000
+StatefulPartitionedCall/model/conv_pw_13_bn/FusedBatchNormV3__220:0: 3f800000
+StatefulPartitionedCall/model/global_average_pooling2d/Mean:0: 3f800000
+(Unnamed Layer* 83) [Shuffle]_output: 3f800000
+(Unnamed Layer* 84) [Fully Connected]_output: 3f800000
+StatefulPartitionedCall/model/dense/MatMul:0: 3f800000
+(Unnamed Layer* 89) [Constant]_output: 3f800000
+(Unnamed Layer* 90) [Shuffle]_output: 3f800000
+StatefulPartitionedCall/model/dense/BiasAdd:0: 3f800000
+(Unnamed Layer* 97) [Shuffle]_output: 3f800000
+(Unnamed Layer* 98) [Softmax]_output: 3f800000
+Identity:0: 3f800000

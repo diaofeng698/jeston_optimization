@@ -44,6 +44,7 @@ struct SampleINT8Params : public samplesCommon::OnnxSampleParams
     int nbCalBatches;        //!< The number of batches for calibration
     int calBatchSize;        //!< The calibration batch size
     std::string networkName; //!< The name of the network
+    int classesNum;
 };
 
 const std::string gSampleName = "TensorRT.sample_onnx_mnist";
@@ -88,7 +89,7 @@ class SampleOnnxMNIST
     bool constructNetwork(SampleUniquePtr<nvinfer1::IBuilder> &builder,
                           SampleUniquePtr<nvinfer1::INetworkDefinition> &network,
                           SampleUniquePtr<nvinfer1::IBuilderConfig> &config,
-                          SampleUniquePtr<nvonnxparser::IParser> &parser, DataType dataType);
+                          SampleUniquePtr<nvonnxparser::IParser> &parser, DataType dataType, int classesNum);
 
     //!
     //! \brief Reads the input  and stores the result in a managed buffer
@@ -143,7 +144,7 @@ bool SampleOnnxMNIST::build(DataType dataType)
         return false;
     }
 
-    auto constructed = constructNetwork(builder, network, config, parser, dataType);
+    auto constructed = constructNetwork(builder, network, config, parser, dataType, mParams.classesNum);
     if (!constructed)
     {
         return false;
@@ -173,7 +174,7 @@ bool SampleOnnxMNIST::build(DataType dataType)
     }
 
     std::ofstream planFile("/home/fdiao/Downloads/TensorRT-8.2.1.8/samples/python/int8_caffe_mnist/DAD/sampleINT8/"
-                           "model/model_cpp_default.plan",
+                           "model/model_cpp_int8.plan",
                            std::ios::binary);
     planFile.write(static_cast<char *>(plan->data()), plan->size());
 
@@ -217,7 +218,8 @@ bool SampleOnnxMNIST::build(DataType dataType)
 bool SampleOnnxMNIST::constructNetwork(SampleUniquePtr<nvinfer1::IBuilder> &builder,
                                        SampleUniquePtr<nvinfer1::INetworkDefinition> &network,
                                        SampleUniquePtr<nvinfer1::IBuilderConfig> &config,
-                                       SampleUniquePtr<nvonnxparser::IParser> &parser, DataType dataType)
+                                       SampleUniquePtr<nvonnxparser::IParser> &parser, DataType dataType,
+                                       int classesNum)
 {
     auto parsed = parser->parseFromFile(locateFile(mParams.onnxFileName, mParams.dataDirs).c_str(),
                                         static_cast<int>(sample::gLogger.getReportableSeverity()));
@@ -246,8 +248,8 @@ bool SampleOnnxMNIST::constructNetwork(SampleUniquePtr<nvinfer1::IBuilder> &buil
 
         Int8EntropyCalibrator2 *calibrator = new Int8EntropyCalibrator2(
             mParams.batchSize, inputW, inputH,
-            "/home/fdiao/Downloads/TensorRT-8.2.1.8/samples/python/int8_caffe_mnist/SF_dataset/",
-            "../model/mobilenetint8.cache", "input_1:0", false);
+            "/home/fdiao/Downloads/TensorRT-8.2.1.8/samples/python/int8_caffe_mnist/SF_dataset/train/c",
+            "../model/mobilenetint8.cache", "input_1:0", false, classesNum);
         config->setInt8Calibrator(calibrator);
     }
 
@@ -458,6 +460,7 @@ SampleINT8Params initializeSampleParams(const samplesCommon::Args &args)
     params.fp16 = args.runInFp16;
     params.batchSize = 1;
     params.calBatchSize = 1;
+    params.classesNum = 10;
 
     return params;
 }
@@ -507,7 +510,7 @@ int main(int argc, char **argv)
     sample::gLogInfo << "Building and running a GPU inference engine for Onnx MNIST" << std::endl;
     std::vector<DataType> dataTypes = {DataType::kINT8};
 
-    if (!sample.build(dataTypes[1]))
+    if (!sample.build(dataTypes[0]))
     {
         return sample::gLogger.reportFail(sampleTest);
     }

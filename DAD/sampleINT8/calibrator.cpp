@@ -8,13 +8,14 @@
 
 Int8EntropyCalibrator2::Int8EntropyCalibrator2(int batchsize, int input_w, int input_h, const char *img_dir,
                                                const char *calib_table_name, const char *input_blob_name,
-                                               bool read_cache)
+                                               bool read_cache, int classes_num)
     : batchsize_(batchsize), input_w_(input_w), input_h_(input_h), img_idx_(0), img_dir_(img_dir),
-      calib_table_name_(calib_table_name), input_blob_name_(input_blob_name), read_cache_(read_cache)
+      calib_table_name_(calib_table_name), input_blob_name_(input_blob_name), read_cache_(read_cache),
+      classes_num(classes_num)
 {
     input_count_ = 3 * input_w * input_h * batchsize;
     CUDA_CHECK(cudaMalloc(&device_input_, input_count_ * sizeof(float)));
-    read_files_in_dir(img_dir, img_files_);
+    read_files_in_dir(img_dir, img_files_, classes_num);
 }
 
 Int8EntropyCalibrator2::~Int8EntropyCalibrator2()
@@ -48,8 +49,8 @@ bool Int8EntropyCalibrator2::getBatch(void *bindings[], const char *names[], int
         input_imgs_.push_back(pr_img);
     }
     img_idx_ += batchsize_;
-    cv::Mat blob = cv::dnn::blobFromImages(input_imgs_, 1.0 / 255.0, cv::Size(input_w_, input_h_), cv::Scalar(0, 0, 0),
-                                           true, false);
+    cv::Mat blob =
+        cv::dnn::blobFromImages(input_imgs_, 1.0, cv::Size(input_w_, input_h_), cv::Scalar(0, 0, 0), true, false);
 
     CUDA_CHECK(cudaMemcpy(device_input_, blob.ptr<float>(0), input_count_ * sizeof(float), cudaMemcpyHostToDevice));
     assert(!strcmp(names[0], input_blob_name_));
