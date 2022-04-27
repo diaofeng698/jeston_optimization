@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.5)
 PROJECT(sampleINT8 VERSION 1.0.0 LANGUAGES C CXX CUDA)
+SET(CMAKE_BUILD_TYPE Debug)
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/../cmake/common.cmake)
 

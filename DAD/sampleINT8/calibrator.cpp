@@ -34,12 +34,14 @@ bool Int8EntropyCalibrator2::getBatch(void *bindings[], const char *names[], int
     {
         return false;
     }
+    std::cout << "---------- Calibrator File From : " << img_idx_ << " to " << img_idx_ + batchsize_ - 1
+              << " ----------" << std::endl;
 
     std::vector<cv::Mat> input_imgs_;
     for (int i = img_idx_; i < img_idx_ + batchsize_; i++)
     {
         std::cout << img_files_[i] << "  " << i << std::endl;
-        cv::Mat temp = cv::imread(img_dir_ + img_files_[i]);
+        cv::Mat temp = cv::imread(img_files_[i]);
         if (temp.empty())
         {
             std::cerr << "Fatal error: image cannot open!" << std::endl;
@@ -48,6 +50,7 @@ bool Int8EntropyCalibrator2::getBatch(void *bindings[], const char *names[], int
         cv::Mat pr_img = preprocess_img(temp, input_w_, input_h_);
         input_imgs_.push_back(pr_img);
     }
+
     img_idx_ += batchsize_;
     cv::Mat blob =
         cv::dnn::blobFromImages(input_imgs_, 1.0, cv::Size(input_w_, input_h_), cv::Scalar(0, 0, 0), true, false);

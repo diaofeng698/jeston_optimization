@@ -117,12 +117,6 @@ bool SampleOnnxMNIST::build(DataType dataType)
     {
         return false;
     }
-
-    if ((dataType == DataType::kINT8 && !builder->platformHasFastInt8()) ||
-        (dataType == DataType::kHALF && !builder->platformHasFastFp16()))
-    {
-        return false;
-    }
     const auto explicitBatch = 1U << static_cast<uint32_t>(NetworkDefinitionCreationFlag::kEXPLICIT_BATCH);
     auto network = SampleUniquePtr<nvinfer1::INetworkDefinition>(builder->createNetworkV2(explicitBatch));
 
@@ -144,6 +138,12 @@ bool SampleOnnxMNIST::build(DataType dataType)
         return false;
     }
 
+    SampleUniquePtr<IRuntime> runtime{createInferRuntime(sample::gLogger.getTRTLogger())};
+    if (!runtime)
+    {
+        return false;
+    }
+
     auto constructed = constructNetwork(builder, network, config, parser, dataType, mParams.classesNum);
     if (!constructed)
     {
@@ -158,14 +158,7 @@ bool SampleOnnxMNIST::build(DataType dataType)
     }
     config->setProfileStream(*profileStream);
 
-    // Input shape
-    Dims32 dim;
-    dim.nbDims = 4;
-    dim.d[0] = 1;
-    dim.d[1] = 224;
-    dim.d[2] = 224;
-    dim.d[3] = 3;
-    network->getInput(0)->setDimensions(dim);
+    std::cout << "88888888888  step into buildSerializedNetwork 88888888" << std::endl;
 
     SampleUniquePtr<IHostMemory> plan{builder->buildSerializedNetwork(*network, *config)};
     if (!plan)
@@ -173,16 +166,12 @@ bool SampleOnnxMNIST::build(DataType dataType)
         return false;
     }
 
+    std::cout << "88888888888  step into write plan file 88888888" << std::endl;
+
     std::ofstream planFile("/home/fdiao/Downloads/TensorRT-8.2.1.8/samples/python/int8_caffe_mnist/DAD/sampleINT8/"
                            "model/model_cpp_int8.plan",
                            std::ios::binary);
     planFile.write(static_cast<char *>(plan->data()), plan->size());
-
-    SampleUniquePtr<IRuntime> runtime{createInferRuntime(sample::gLogger.getTRTLogger())};
-    if (!runtime)
-    {
-        return false;
-    }
 
     mEngine = std::shared_ptr<nvinfer1::ICudaEngine>(runtime->deserializeCudaEngine(plan->data(), plan->size()),
                                                      samplesCommon::InferDeleter());
@@ -199,10 +188,10 @@ bool SampleOnnxMNIST::build(DataType dataType)
     mOutputDims = network->getOutput(0)->getDimensions();
     ASSERT(mOutputDims.nbDims == 2);
 
-    inputB = mInputDims.d[0];
-    inputH = mInputDims.d[1];
-    inputW = mInputDims.d[2];
-    inputChannel = mInputDims.d[3];
+    // inputB = mInputDims.d[0];
+    // inputH = mInputDims.d[1];
+    // inputW = mInputDims.d[2];
+    // inputChannel = mInputDims.d[3];
 
     return true;
 }
@@ -221,28 +210,12 @@ bool SampleOnnxMNIST::constructNetwork(SampleUniquePtr<nvinfer1::IBuilder> &buil
                                        SampleUniquePtr<nvonnxparser::IParser> &parser, DataType dataType,
                                        int classesNum)
 {
-    auto parsed = parser->parseFromFile(locateFile(mParams.onnxFileName, mParams.dataDirs).c_str(),
-                                        static_cast<int>(sample::gLogger.getReportableSeverity()));
-    if (!parsed)
-    {
-        return false;
-    }
-
-    network->markOutput(*network->getOutput(0));
-
-    // Calibrator life time needs to last until after the engine is built.
-
-    config->setAvgTimingIterations(1);
-    config->setMinTimingIterations(1);
-    config->setMaxWorkspaceSize(1_GiB);
-    if (dataType == DataType::kINT8)
-    {
-        config->setFlag(BuilderFlag::kINT8);
-        samplesCommon::setAllDynamicRanges(network.get(), 127.0f, 127.0f);
-    }
+    inputChannel = 3;
+    inputH = 224;
+    inputW = 224;
+    inputB = 1;
 
     builder->setMaxBatchSize(mParams.batchSize);
-
     if (dataType == DataType::kINT8)
     {
 
@@ -250,20 +223,44 @@ bool SampleOnnxMNIST::constructNetwork(SampleUniquePtr<nvinfer1::IBuilder> &buil
             mParams.batchSize, inputW, inputH,
             "/home/fdiao/Downloads/TensorRT-8.2.1.8/samples/python/int8_caffe_mnist/SF_dataset/train/c",
             "../model/mobilenetint8.cache", "input_1:0", false, classesNum);
+        config->setMaxWorkspaceSize(1_GiB);
+        config->setFlag(BuilderFlag::kINT8);
         config->setInt8Calibrator(calibrator);
-    }
+        // builder->platformHasFastInt8();
 
-    if (mParams.dlaCore >= 0)
-    {
-        samplesCommon::enableDLA(builder.get(), config.get(), mParams.dlaCore);
-        if (mParams.batchSize > builder->getMaxDLABatchSize())
-        {
-            sample::gLogError << "Requested batch size " << mParams.batchSize
-                              << " is greater than the max DLA batch size of " << builder->getMaxDLABatchSize()
-                              << ". Reducing batch size accordingly." << std::endl;
-            return false;
-        }
+        // samplesCommon::setAllDynamicRanges(network.get(), 127.0f, 127.0f);
     }
+    auto parsed = parser->parseFromFile(locateFile(mParams.onnxFileName, mParams.dataDirs).c_str(),
+                                        static_cast<int>(sample::gLogger.getReportableSeverity()));
+    if (!parsed)
+    {
+        return false;
+    }
+    // Input shape
+
+    Dims32 dim;
+    dim.nbDims = 4;
+    dim.d[0] = inputB;
+    dim.d[1] = inputH;
+    dim.d[2] = inputW;
+    dim.d[3] = inputChannel;
+    network->getInput(0)->setDimensions(dim);
+
+    // network->markOutput(*network->getOutput(0));
+
+    // Calibrator life time needs to last until after the engine is built.
+
+    // if (mParams.dlaCore >= 0)
+    // {
+    //     samplesCommon::enableDLA(builder.get(), config.get(), mParams.dlaCore);
+    //     if (mParams.batchSize > builder->getMaxDLABatchSize())
+    //     {
+    //         sample::gLogError << "Requested batch size " << mParams.batchSize
+    //                           << " is greater than the max DLA batch size of " << builder->getMaxDLABatchSize()
+    //                           << ". Reducing batch size accordingly." << std::endl;
+    //         return false;
+    //     }
+    // }
 
     return true;
 }
@@ -318,28 +315,6 @@ bool SampleOnnxMNIST::infer(std::string file_name)
 //!
 bool SampleOnnxMNIST::processInput(const samplesCommon::BufferManager &buffers, std::string file_name)
 {
-    // const int inputH = mInputDims.d[2];
-    // const int inputW = mInputDims.d[3];
-
-    // // Read a random digit file
-    // srand(unsigned(time(nullptr)));
-    // std::vector<uint8_t> fileData(inputH * inputW);
-    // mNumber = rand() % 10;
-    // readPGMFile(locateFile(std::to_string(mNumber) + ".pgm", mParams.dataDirs), fileData.data(), inputH, inputW);
-
-    // // Print an ascii representation
-    // sample::gLogInfo << "Input:" << std::endl;
-    // for (int i = 0; i < inputH * inputW; i++)
-    // {
-    //     sample::gLogInfo << (" .:-=+*#%@"[fileData[i] / 26]) << (((i + 1) % inputW) ? "" : "\n");
-    // }
-    // sample::gLogInfo << std::endl;
-
-    // float *hostDataBuffer = static_cast<float *>(buffers.getHostBuffer(mParams.inputTensorNames[0]));
-    // for (int i = 0; i < inputH * inputW; i++)
-    // {
-    //     hostDataBuffer[i] = 1.0 - float(fileData[i] / 255.0);
-    // }
 
     float *hostDataBuffer = static_cast<float *>(buffers.getHostBuffer(mParams.inputTensorNames[0]));
 
@@ -377,41 +352,6 @@ bool SampleOnnxMNIST::processInput(const samplesCommon::BufferManager &buffers, 
 //!
 //! \return whether the classification output matches expectations
 //!
-// bool SampleOnnxMNIST::verifyOutput(const samplesCommon::BufferManager &buffers)
-// {
-//     const int outputSize = mOutputDims.d[1];
-//     float *output = static_cast<float *>(buffers.getHostBuffer(mParams.outputTensorNames[0]));
-//     float val{0.0f};
-//     int idx{0};
-
-//     // Calculate Softmax
-//     float sum{0.0f};
-//     for (int i = 0; i < outputSize; i++)
-//     {
-//         output[i] = exp(output[i]);
-//         sum += output[i];
-//     }
-
-//     sample::gLogInfo << "Output:" << std::endl;
-//     for (int i = 0; i < outputSize; i++)
-//     {
-//         output[i] /= sum;
-//         val = std::max(val, output[i]);
-//         if (val == output[i])
-//         {
-//             idx = i;
-//         }
-
-//         sample::gLogInfo << " Prob " << i << "  " << std::fixed << std::setw(5) << std::setprecision(4) << output[i]
-//                          << " "
-//                          << "Class " << i << ": " << std::string(int(std::floor(output[i] * 10 + 0.5f)), '*')
-//                          << std::endl;
-//     }
-//     sample::gLogInfo << std::endl;
-
-//     return idx == mNumber && val > 0.9f;
-// }
-
 bool SampleOnnxMNIST::verifyOutput(const samplesCommon::BufferManager &buffers)
 {
     const int outputSize = mOutputDims.d[1];
@@ -458,8 +398,7 @@ SampleINT8Params initializeSampleParams(const samplesCommon::Args &args)
     params.dlaCore = args.useDLACore;
     params.int8 = args.runInInt8;
     params.fp16 = args.runInFp16;
-    params.batchSize = 1;
-    params.calBatchSize = 1;
+    params.batchSize = 10;
     params.classesNum = 10;
 
     return params;
@@ -515,7 +454,9 @@ int main(int argc, char **argv)
         return sample::gLogger.reportFail(sampleTest);
     }
 
-    string file_name = "img.png";
+    std::cout << "88888888 Start infer 88888888" << std::endl;
+
+    string file_name = "img_1.jpg";
     if (!sample.infer(file_name))
     {
         return sample::gLogger.reportFail(sampleTest);

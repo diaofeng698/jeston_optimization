@@ -577,7 +577,7 @@ samplesCommon::OnnxSampleParams initializeSampleParams(const samplesCommon::Args
     // params.inputTensorNames.push_back("input_1");
     // params.outputTensorNames.push_back("dense");
     // int
-    params.onnxFileName = "mobilenet_int8.plan";
+    params.onnxFileName = "model_cpp_int8.plan";
     params.inputTensorNames.push_back("input_1:0");
     params.outputTensorNames.push_back("Identity:0");
     params.dlaCore = args.useDLACore;
