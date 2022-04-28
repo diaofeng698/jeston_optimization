@@ -53,6 +53,7 @@ class GoogleNet
     int inputB{0};
 
     std::shared_ptr<nvinfer1::ICudaEngine> mEngine; //!< The TensorRT engine used to run the network
+    SampleUniquePtr<nvinfer1::IExecutionContext> context;
 
     bool processInputTest(const samplesCommon::BufferManager &buffers);
     bool processInputOpenCV(const samplesCommon::BufferManager &buffers, std::string file_name);
@@ -109,6 +110,22 @@ bool GoogleNet::build()
     inputH = mInputDims.d[1];
     inputW = mInputDims.d[2];
     inputChannel = mInputDims.d[3];
+
+    struct timeval engine_tv1, engine_tv2;
+    /*Start timer*/
+    gettimeofday(&engine_tv1, NULL);
+
+    context = SampleUniquePtr<nvinfer1::IExecutionContext>(mEngine->createExecutionContext());
+    if (!context)
+    {
+        return false;
+    }
+    /*End timer*/
+    gettimeofday(&engine_tv2, NULL);
+
+    double engine_fDiffTime = ((double)(engine_tv2.tv_usec - engine_tv1.tv_usec) / 1000.0) +
+                              ((double)(engine_tv2.tv_sec - engine_tv1.tv_sec) * 1000.0);
+    std::cout << "===============> createExecutionContext: " << engine_fDiffTime << std::endl;
     return true;
 }
 
@@ -116,23 +133,6 @@ bool GoogleNet::infer(std::string file_name)
 {
     // Create RAII buffer manager object
     samplesCommon::BufferManager buffers(mEngine);
-
-    struct timeval engine_tv1, engine_tv2;
-    /*Start timer*/
-    gettimeofday(&engine_tv1, NULL);
-
-    auto context = SampleUniquePtr<nvinfer1::IExecutionContext>(mEngine->createExecutionContext());
-    if (!context)
-    {
-        return false;
-    }
-
-    /*End timer*/
-    gettimeofday(&engine_tv2, NULL);
-
-    double engine_fDiffTime = ((double)(engine_tv2.tv_usec - engine_tv1.tv_usec) / 1000.0) +
-                              ((double)(engine_tv2.tv_sec - engine_tv1.tv_sec) * 1000.0);
-    std::cout << "===============> createExecutionContext: " << engine_fDiffTime << std::endl;
 
     // Read the input data into the managed buffers
     assert(mParams.inputTensorNames.size() == 1);
@@ -643,7 +643,7 @@ int main(int argc, char **argv)
 
     std::cout << "*********** Start infer ***********" << std::endl;
     int num_img = 1000;
-    string file_name = "img.jpg";
+    string file_name = "img.pngg";
     for (int i = 0; i < num_img; i++)
     {
         struct timeval tv1, tv2;
