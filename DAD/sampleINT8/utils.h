@@ -58,7 +58,8 @@ static inline cv::Mat preprocess_img(cv::Mat &img, int input_w, int input_h)
     return out;
 }
 
-static inline int read_files_in_dir(const char *p_dir_name, std::vector<std::string> &file_names, int classesNum)
+static inline int read_files_in_dir(const char *p_dir_name, std::vector<std::string> &file_names,
+                                    std::vector<int> &img_labels, int classesNum)
 {
 
     for (int i = 0; i < classesNum; i++)
@@ -82,11 +83,12 @@ static inline int read_files_in_dir(const char *p_dir_name, std::vector<std::str
                 cur_file_name += p_file->d_name;
                 // std::string cur_file_name(p_file->d_name);
                 file_names.push_back(cur_file_name);
+                img_labels.push_back(i);
             }
         }
 
         std::cout << "------>   Image num " << file_names.size() << std::endl;
-
+        std::cout << "------>   Label num " << img_labels.size() << std::endl;
         closedir(p_dir);
     }
     return 0;

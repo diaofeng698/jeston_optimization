@@ -21,6 +21,10 @@ class Int8EntropyCalibrator2 : public nvinfer1::IInt8EntropyCalibrator2
     bool getBatch(void *bindings[], const char *names[], int nbBindings) noexcept;
     const void *readCalibrationCache(size_t &length) noexcept;
     void writeCalibrationCache(const void *cache, size_t length) noexcept;
+    int getImageNum();
+
+    std::vector<std::string> getImageFiles();
+    std::vector<int> getImageLabels();
 
   private:
     int batchsize_;
@@ -29,6 +33,7 @@ class Int8EntropyCalibrator2 : public nvinfer1::IInt8EntropyCalibrator2
     int img_idx_;
     std::string img_dir_;
     std::vector<std::string> img_files_;
+    std::vector<int> img_labels_;
     size_t input_count_;
     std::string calib_table_name_;
     const char *input_blob_name_;

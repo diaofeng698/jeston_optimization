@@ -32,6 +32,7 @@
 #include "NvInfer.h"
 #include <cuda_runtime_api.h>
 
+#include "utils.h"
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
@@ -56,6 +57,10 @@ const std::string gSampleName = "TensorRT.sample_onnx_mnist";
 class SampleOnnxMNIST
 {
   public:
+    int totalImageNum{0};
+    int correctNum{0};
+    std::vector<std::string> imgFiles;
+    std::vector<int> imgLabels;
     SampleOnnxMNIST(const SampleINT8Params &params) : mParams(params), mEngine(nullptr)
     {
     }
@@ -68,7 +73,7 @@ class SampleOnnxMNIST
     //!
     //! \brief Runs the TensorRT inference engine for this sample
     //!
-    bool infer(std::string file_name);
+    bool infer(std::string file_name, int label);
 
   private:
     SampleINT8Params mParams; //!< The parameters for the sample.
@@ -99,7 +104,7 @@ class SampleOnnxMNIST
     //!
     //! \brief Classifies digits and verify result
     //!
-    bool verifyOutput(const samplesCommon::BufferManager &buffers);
+    bool verifyOutput(const samplesCommon::BufferManager &buffers, int label);
 };
 
 //!
@@ -167,10 +172,19 @@ bool SampleOnnxMNIST::build(DataType dataType)
     }
 
     std::cout << "88888888888  step into write plan file 88888888" << std::endl;
+    std::string planName;
+    if (dataType == DataType::kINT8)
+    {
+        planName = "/home/fdiao/Downloads/TensorRT-8.2.1.8/samples/python/int8_caffe_mnist/DAD/sampleINT8/"
+                   "model/model_cpp_int8.plan";
+    }
+    else
+    {
+        planName = "/home/fdiao/Downloads/TensorRT-8.2.1.8/samples/python/int8_caffe_mnist/DAD/sampleINT8/"
+                   "model/model_cpp_fp32.plan";
+    }
 
-    std::ofstream planFile("/home/fdiao/Downloads/TensorRT-8.2.1.8/samples/python/int8_caffe_mnist/DAD/sampleINT8/"
-                           "model/model_cpp_int8.plan",
-                           std::ios::binary);
+    std::ofstream planFile(planName, std::ios::binary);
     planFile.write(static_cast<char *>(plan->data()), plan->size());
 
     mEngine = std::shared_ptr<nvinfer1::ICudaEngine>(runtime->deserializeCudaEngine(plan->data(), plan->size()),
@@ -187,11 +201,6 @@ bool SampleOnnxMNIST::build(DataType dataType)
     ASSERT(network->getNbOutputs() == 1);
     mOutputDims = network->getOutput(0)->getDimensions();
     ASSERT(mOutputDims.nbDims == 2);
-
-    // inputB = mInputDims.d[0];
-    // inputH = mInputDims.d[1];
-    // inputW = mInputDims.d[2];
-    // inputChannel = mInputDims.d[3];
 
     return true;
 }
@@ -216,19 +225,25 @@ bool SampleOnnxMNIST::constructNetwork(SampleUniquePtr<nvinfer1::IBuilder> &buil
     inputB = 1;
 
     builder->setMaxBatchSize(mParams.batchSize);
+
+    std::string imgDir = "/home/fdiao/Downloads/TensorRT-8.2.1.8/samples/python/int8_caffe_mnist/SF_dataset/train/c";
     if (dataType == DataType::kINT8)
     {
 
-        Int8EntropyCalibrator2 *calibrator = new Int8EntropyCalibrator2(
-            mParams.batchSize, inputW, inputH,
-            "/home/fdiao/Downloads/TensorRT-8.2.1.8/samples/python/int8_caffe_mnist/SF_dataset/train/c",
-            "../model/mobilenetint8.cache", "input_1:0", false, classesNum);
+        Int8EntropyCalibrator2 *calibrator =
+            new Int8EntropyCalibrator2(mParams.batchSize, inputW, inputH, imgDir.c_str(),
+                                       "../model/mobilenetint8.cache", "input_1:0", false, classesNum);
         config->setMaxWorkspaceSize(1_GiB);
         config->setFlag(BuilderFlag::kINT8);
         config->setInt8Calibrator(calibrator);
-        // builder->platformHasFastInt8();
-
-        // samplesCommon::setAllDynamicRanges(network.get(), 127.0f, 127.0f);
+        totalImageNum = calibrator->getImageNum();
+        imgFiles = calibrator->getImageFiles();
+        imgLabels = calibrator->getImageLabels();
+    }
+    else
+    {
+        read_files_in_dir(imgDir.c_str(), imgFiles, imgLabels, classesNum);
+        totalImageNum = imgFiles.size();
     }
     auto parsed = parser->parseFromFile(locateFile(mParams.onnxFileName, mParams.dataDirs).c_str(),
                                         static_cast<int>(sample::gLogger.getReportableSeverity()));
@@ -246,22 +261,6 @@ bool SampleOnnxMNIST::constructNetwork(SampleUniquePtr<nvinfer1::IBuilder> &buil
     dim.d[3] = inputChannel;
     network->getInput(0)->setDimensions(dim);
 
-    // network->markOutput(*network->getOutput(0));
-
-    // Calibrator life time needs to last until after the engine is built.
-
-    // if (mParams.dlaCore >= 0)
-    // {
-    //     samplesCommon::enableDLA(builder.get(), config.get(), mParams.dlaCore);
-    //     if (mParams.batchSize > builder->getMaxDLABatchSize())
-    //     {
-    //         sample::gLogError << "Requested batch size " << mParams.batchSize
-    //                           << " is greater than the max DLA batch size of " << builder->getMaxDLABatchSize()
-    //                           << ". Reducing batch size accordingly." << std::endl;
-    //         return false;
-    //     }
-    // }
-
     return true;
 }
 
@@ -271,7 +270,7 @@ bool SampleOnnxMNIST::constructNetwork(SampleUniquePtr<nvinfer1::IBuilder> &buil
 //! \details This function is the main execution function of the sample. It allocates the buffer,
 //!          sets inputs and executes the engine.
 //!
-bool SampleOnnxMNIST::infer(std::string file_name)
+bool SampleOnnxMNIST::infer(std::string file_name, int label)
 {
     // Create RAII buffer manager object
     samplesCommon::BufferManager buffers(mEngine);
@@ -302,7 +301,7 @@ bool SampleOnnxMNIST::infer(std::string file_name)
     buffers.copyOutputToHost();
 
     // Verify results
-    if (!verifyOutput(buffers))
+    if (!verifyOutput(buffers, label))
     {
         return false;
     }
@@ -318,19 +317,23 @@ bool SampleOnnxMNIST::processInput(const samplesCommon::BufferManager &buffers, 
 
     float *hostDataBuffer = static_cast<float *>(buffers.getHostBuffer(mParams.inputTensorNames[0]));
 
-    std::string img_name = locateFile(file_name, mParams.dataDirs);
+    // For one image
+    //  std::string img_name = locateFile(file_name, mParams.dataDirs);
+    // For many image
+    std::string img_name = file_name;
     cv::Mat img = cv::imread(img_name);
-    std::cout << "raw inputH " << img.rows << " inputW " << img.cols << " inputChannel " << img.channels() << std::endl;
+    // std::cout << "raw inputH " << img.rows << " inputW " << img.cols << " inputChannel " << img.channels() <<
+    // std::endl;
 
     cv::Mat resized_img;
     cv::resize(img, resized_img, cv::Size(224, 224));
-    std::cout << "resized inputH " << resized_img.rows << " inputW " << resized_img.cols << " inputChannel "
-              << resized_img.channels() << std::endl;
+    // std::cout << "resized inputH " << resized_img.rows << " inputW " << resized_img.cols << " inputChannel "
+    //           << resized_img.channels() << std::endl;
 
     cv::Mat gray_img;
     cv::cvtColor(resized_img, gray_img, cv::COLOR_BGR2GRAY);
-    std::cout << "gray inputH " << gray_img.rows << " inputW " << gray_img.cols << " inputChannel "
-              << gray_img.channels() << std::endl;
+    // std::cout << "gray inputH " << gray_img.rows << " inputW " << gray_img.cols << " inputChannel "
+    //           << gray_img.channels() << std::endl;
 
     for (int b = 0, volImg = inputChannel * inputH * inputW; b < inputB; b++)
     {
@@ -352,20 +355,35 @@ bool SampleOnnxMNIST::processInput(const samplesCommon::BufferManager &buffers, 
 //!
 //! \return whether the classification output matches expectations
 //!
-bool SampleOnnxMNIST::verifyOutput(const samplesCommon::BufferManager &buffers)
+bool SampleOnnxMNIST::verifyOutput(const samplesCommon::BufferManager &buffers, int label)
 {
     const int outputSize = mOutputDims.d[1];
     float *output = static_cast<float *>(buffers.getHostBuffer(mParams.outputTensorNames[0]));
     float val{0.0f};
     int idx{0};
+    int max_idx = -1;
+    float max_prob = 0.0;
     if (1)
     {
         std::cout << "output: ";
         for (int i = 0; i < outputSize; i++)
         {
             std::cout << std::fixed << output[i] << ", ";
+
+            if (max_prob < output[i])
+            {
+                max_prob = output[i];
+                max_idx = i;
+            }
         }
         std::cout << std::endl;
+        std::cout << "Class ID: " << max_idx << std::endl;
+        if (max_idx == label)
+        {
+
+            correctNum++;
+            // std::cout << "Correct" << correctNum << std::endl;
+        }
         return true;
     }
 }
@@ -446,20 +464,37 @@ int main(int argc, char **argv)
 
     SampleOnnxMNIST sample(initializeSampleParams(args));
 
-    sample::gLogInfo << "Building and running a GPU inference engine for Onnx MNIST" << std::endl;
-    std::vector<DataType> dataTypes = {DataType::kINT8};
+    sample::gLogInfo << "Building and running a GPU inference engine for Onnx MOC" << std::endl;
+    std::vector<DataType> dataTypes = {DataType::kINT8, DataType::kFLOAT};
+    DataType dataType = dataTypes[0];
 
-    if (!sample.build(dataTypes[0]))
+    if (!sample.build(dataType))
     {
         return sample::gLogger.reportFail(sampleTest);
     }
 
     std::cout << "88888888 Start infer 88888888" << std::endl;
 
-    string file_name = "img_1.jpg";
-    if (!sample.infer(file_name))
+    for (int i = 0; i < sample.imgFiles.size(); i++)
     {
-        return sample::gLogger.reportFail(sampleTest);
+        string file_name = sample.imgFiles[i];
+        int label = sample.imgLabels[i];
+        if (!sample.infer(file_name, label))
+        {
+            return sample::gLogger.reportFail(sampleTest);
+        }
+    }
+    std::cout << "Total Image Num : " << sample.totalImageNum << std::endl;
+
+    if (dataType == DataType::kINT8)
+    {
+        std::cout << "Total Accuracy INT8 Calibrate : "
+                  << float(sample.correctNum) / float(sample.totalImageNum) * 100.0 << "%" << std::endl;
+    }
+    else
+    {
+        std::cout << "Total Accuracy FP32 : " << float(sample.correctNum) / float(sample.totalImageNum) * 100.0 << "%"
+                  << std::endl;
     }
 
     return sample::gLogger.reportPass(sampleTest);

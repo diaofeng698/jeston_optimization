@@ -15,7 +15,7 @@ Int8EntropyCalibrator2::Int8EntropyCalibrator2(int batchsize, int input_w, int i
 {
     input_count_ = 3 * input_w * input_h * batchsize;
     CUDA_CHECK(cudaMalloc(&device_input_, input_count_ * sizeof(float)));
-    read_files_in_dir(img_dir, img_files_, classes_num);
+    read_files_in_dir(img_dir, img_files_, img_labels_, classes_num);
 }
 
 Int8EntropyCalibrator2::~Int8EntropyCalibrator2()
@@ -80,4 +80,19 @@ void Int8EntropyCalibrator2::writeCalibrationCache(const void *cache, size_t len
     std::cout << "writing calib cache: " << calib_table_name_ << " size: " << length << std::endl;
     std::ofstream output(calib_table_name_, std::ios::binary);
     output.write(reinterpret_cast<const char *>(cache), length);
+}
+
+int Int8EntropyCalibrator2::getImageNum()
+{
+    return img_files_.size();
+}
+
+std::vector<std::string> Int8EntropyCalibrator2::getImageFiles()
+{
+    return img_files_;
+}
+
+std::vector<int> Int8EntropyCalibrator2::getImageLabels()
+{
+    return img_labels_;
 }
