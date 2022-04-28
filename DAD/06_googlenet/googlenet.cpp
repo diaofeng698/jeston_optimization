@@ -168,6 +168,7 @@ bool GoogleNet::infer(std::string file_name)
         double togpu_fDiffTime = ((double)(togpu_tv2.tv_usec - togpu_tv1.tv_usec) / 1000.0) +
                                  ((double)(togpu_tv2.tv_sec - togpu_tv1.tv_sec) * 1000.0);
         std::cout << "===============> copyInputToDevice: " << togpu_fDiffTime << std::endl;
+        total_togpu_fDiffTime += togpu_fDiffTime;
     }
     else
     {
@@ -666,11 +667,11 @@ int main(int argc, char **argv)
     std::cout << "   +++++++++++++++> " << num_img
               << " frame average pre processing time of DaD : " << total_pre_fDiffTime / num_img << std::endl;
     std::cout << "      +++++++++++++++> " << num_img
-              << " frame average copy to cpu time of DaD : " << total_tocpu_fDiffTime / num_img << std::endl;
+              << " frame average copy to gpu time of DaD : " << total_togpu_fDiffTime / num_img << std::endl;
     std::cout << "   +++++++++++++++> " << num_img
               << " frame average only infer time of DaD : " << total_infer_fDiffTime / num_img << std::endl;
     std::cout << "   +++++++++++++++> " << num_img
-              << " frame average copy to gpu time of DaD : " << total_togpu_fDiffTime / num_img << std::endl;
+              << " frame average copy to cpu time of DaD : " << total_tocpu_fDiffTime / num_img << std::endl;
 
     return sample::gLogger.reportPass(sampleTest);
 }
