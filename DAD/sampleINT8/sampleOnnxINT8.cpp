@@ -466,7 +466,7 @@ int main(int argc, char **argv)
 
     sample::gLogInfo << "Building and running a GPU inference engine for Onnx MOC" << std::endl;
     std::vector<DataType> dataTypes = {DataType::kINT8, DataType::kFLOAT};
-    DataType dataType = dataTypes[0];
+    DataType dataType = dataTypes[1];
 
     if (!sample.build(dataType))
     {
