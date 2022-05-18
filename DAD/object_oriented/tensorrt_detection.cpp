@@ -20,7 +20,7 @@ TensorRTInference::~TensorRTInference()
 bool TensorRTInference::TensorRTBuild()
 {
 
-    auto builder = SampleUniquePtr<nvinfer1::IBuilder>(nvinfer1::createInferBuilder(sample::gLogger.getTRTLogger()));
+    auto builder = std::shared_ptr<nvinfer1::IBuilder>(nvinfer1::createInferBuilder(sample::gLogger.getTRTLogger()));
     if (!builder)
     {
         return EXIT_FAILURE;
@@ -75,7 +75,7 @@ bool TensorRTInference::TensorRTBuild()
 
     output_dims_ = engine_->getBindingDimensions(index);
 
-    context_ = SampleUniquePtr<nvinfer1::IExecutionContext>(engine_->createExecutionContext());
+    context_ = std::shared_ptr<nvinfer1::IExecutionContext>(engine_->createExecutionContext());
 
     return EXIT_SUCCESS;
 }
