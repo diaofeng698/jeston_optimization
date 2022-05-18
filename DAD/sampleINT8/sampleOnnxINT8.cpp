@@ -175,13 +175,13 @@ bool SampleOnnxMNIST::build(DataType dataType)
     std::string planName;
     if (dataType == DataType::kINT8)
     {
-        planName = "/home/fdiao/Downloads/TensorRT-8.2.1.8/samples/python/int8_caffe_mnist/DAD/sampleINT8/"
-                   "model/model_cpp_int8.plan";
+        planName = "/home/fdiao/Downloads/TensorRT-8.2.1.8/samples/python/int8_caffe_mnist/DAD/sampleINT8/model/"
+                   "model_cpp_int8.plan";
     }
     else
     {
-        planName = "/home/fdiao/Downloads/TensorRT-8.2.1.8/samples/python/int8_caffe_mnist/DAD/sampleINT8/"
-                   "model/model_cpp_fp32.plan";
+        planName = "/home/fdiao/Downloads/TensorRT-8.2.1.8/samples/python/int8_caffe_mnist/DAD/sampleINT8/model/"
+                   "model_cpp_fp32.plan";
     }
 
     std::ofstream planFile(planName, std::ios::binary);

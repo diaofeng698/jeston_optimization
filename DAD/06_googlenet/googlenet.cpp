@@ -643,7 +643,7 @@ int main(int argc, char **argv)
 
     std::cout << "*********** Start infer ***********" << std::endl;
     int num_img = 1000;
-    string file_name = "img.pngg";
+    string file_name = "img.png";
     for (int i = 0; i < num_img; i++)
     {
         struct timeval tv1, tv2;
