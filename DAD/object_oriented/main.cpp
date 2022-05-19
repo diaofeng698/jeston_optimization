@@ -10,7 +10,7 @@ int main()
     std::string DaDModelPath = std::string("/home/fdiao/Downloads/TensorRT-8.2.1.8/samples/python/int8_caffe_mnist/DAD/"
                                            "06_googlenet/model/model_cpp_int8.plan");
 
-    DaD_net = std::make_shared<TensorRTInference>(DaDModelPath, "input_1:0", "Identity:0", 2);
+    DaD_net = std::make_shared<TensorRTInference>(DaDModelPath, "input_1:0", "Identity:0", 0);
 
     cv::Mat input_frame = cv::imread(input_image_path);
 

@@ -98,22 +98,12 @@ bool TensorRTInference::TensorRTInfer(const cv::Mat &img)
 
     if (preprocessing_method_ == 0)
     {
-        if (ProcessInputTest())
-        {
-            return EXIT_FAILURE;
-        }
-
-        buffers_->copyInputToDevice();
-    }
-    else if (preprocessing_method_ == 1)
-    {
         if (ProcessInputOpenCV(img))
         {
             return EXIT_FAILURE;
         }
-        buffers_->copyInputToDevice();
     }
-    else if (preprocessing_method_ == 2)
+    else if (preprocessing_method_ == 1)
     {
         if (ProcessInputNPPI(img))
         {
@@ -148,23 +138,6 @@ bool TensorRTInference::TensorRTInfer(const cv::Mat &img)
     return EXIT_SUCCESS;
 }
 
-bool TensorRTInference::ProcessInputTest()
-{
-    std::cout << "Choose Input Test " << std::endl;
-    float *hostDataBuffer = static_cast<float *>(buffers_->getHostBuffer(params_.inputTensorNames[0]));
-    for (int b = 0, volImg = input_channel_ * input_height_ * input_width_; b < input_batch_; b++)
-    {
-        for (int c = 0, volChl = input_height_ * input_width_; c < input_channel_; c++)
-        {
-            for (int idx = 0; idx < volChl; idx++)
-            {
-                hostDataBuffer[b * volImg + c * volChl + idx] = 1.0;
-            }
-        }
-    }
-    return EXIT_SUCCESS;
-}
-
 bool TensorRTInference::ProcessInputOpenCV(const cv::Mat &img)
 {
     std::cout << "Choose Input OpenCV " << std::endl;
@@ -188,6 +161,7 @@ bool TensorRTInference::ProcessInputOpenCV(const cv::Mat &img)
             }
         }
     }
+    buffers_->copyInputToDevice();
 
     return EXIT_SUCCESS;
 }
