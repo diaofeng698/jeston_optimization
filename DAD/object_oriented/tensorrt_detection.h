@@ -45,8 +45,9 @@ class TensorRTInference
     int preprocessing_method_{0};
     std::shared_ptr<nvinfer1::ICudaEngine> engine_;
     std::shared_ptr<nvinfer1::IExecutionContext> context_;
-    bool ProcessInputTest(const samplesCommon::BufferManager &buffers);
-    bool ProcessInputOpenCV(const cv::Mat &img, const samplesCommon::BufferManager &buffers);
-    bool ProcessInputNPPI(const cv::Mat &img, const samplesCommon::BufferManager &buffers);
-    bool VerifyOutput(const samplesCommon::BufferManager &buffers);
+    std::shared_ptr<samplesCommon::BufferManager> buffers_;
+    bool ProcessInputTest();
+    bool ProcessInputOpenCV(const cv::Mat &img);
+    bool ProcessInputNPPI(const cv::Mat &img);
+    bool VerifyOutput();
 };

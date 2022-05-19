@@ -5,6 +5,7 @@ TensorRTInference::TensorRTInference(const string model_path, const string input
 {
     context_ = nullptr;
     engine_ = nullptr;
+    buffers_ = nullptr;
     preprocessing_method_ = preprocessing_method;
     params_.onnxFileName = model_path;
     params_.inputTensorNames.push_back(input_tensor_name);
@@ -93,28 +94,28 @@ bool TensorRTInference::TensorRTInfer(const cv::Mat &img)
     struct timeval tv1, tv2;
     gettimeofday(&tv1, NULL);
 
-    samplesCommon::BufferManager buffers(engine_);
+    buffers_ = std::make_shared<samplesCommon::BufferManager>(engine_);
 
     if (preprocessing_method_ == 0)
     {
-        if (ProcessInputTest(buffers))
+        if (ProcessInputTest())
         {
             return EXIT_FAILURE;
         }
 
-        buffers.copyInputToDevice();
+        buffers_->copyInputToDevice();
     }
     else if (preprocessing_method_ == 1)
     {
-        if (ProcessInputOpenCV(img, buffers))
+        if (ProcessInputOpenCV(img))
         {
             return EXIT_FAILURE;
         }
-        buffers.copyInputToDevice();
+        buffers_->copyInputToDevice();
     }
     else if (preprocessing_method_ == 2)
     {
-        if (ProcessInputNPPI(img, buffers))
+        if (ProcessInputNPPI(img))
         {
             return EXIT_FAILURE;
         }
@@ -126,16 +127,16 @@ bool TensorRTInference::TensorRTInfer(const cv::Mat &img)
     }
 
     // Memcpy from host input buffers to device input buffers
-    bool status = context_->executeV2(buffers.getDeviceBindings().data());
+    bool status = context_->executeV2(buffers_->getDeviceBindings().data());
     if (!status)
     {
         return EXIT_FAILURE;
     }
 
     // Memcpy from device output buffers to host output buffers
-    buffers.copyOutputToHost();
+    buffers_->copyOutputToHost();
 
-    if (VerifyOutput(buffers))
+    if (VerifyOutput())
     {
         return EXIT_FAILURE;
     }
@@ -147,10 +148,10 @@ bool TensorRTInference::TensorRTInfer(const cv::Mat &img)
     return EXIT_SUCCESS;
 }
 
-bool TensorRTInference::ProcessInputTest(const samplesCommon::BufferManager &buffers)
+bool TensorRTInference::ProcessInputTest()
 {
     std::cout << "Choose Input Test " << std::endl;
-    float *hostDataBuffer = static_cast<float *>(buffers.getHostBuffer(params_.inputTensorNames[0]));
+    float *hostDataBuffer = static_cast<float *>(buffers_->getHostBuffer(params_.inputTensorNames[0]));
     for (int b = 0, volImg = input_channel_ * input_height_ * input_width_; b < input_batch_; b++)
     {
         for (int c = 0, volChl = input_height_ * input_width_; c < input_channel_; c++)
@@ -164,11 +165,11 @@ bool TensorRTInference::ProcessInputTest(const samplesCommon::BufferManager &buf
     return EXIT_SUCCESS;
 }
 
-bool TensorRTInference::ProcessInputOpenCV(const cv::Mat &img, const samplesCommon::BufferManager &buffers)
+bool TensorRTInference::ProcessInputOpenCV(const cv::Mat &img)
 {
     std::cout << "Choose Input OpenCV " << std::endl;
 
-    float *hostDataBuffer = static_cast<float *>(buffers.getHostBuffer(params_.inputTensorNames[0]));
+    float *hostDataBuffer = static_cast<float *>(buffers_->getHostBuffer(params_.inputTensorNames[0]));
 
     cv::Mat gray_img;
     cv::cvtColor(img, gray_img, cv::COLOR_BGR2GRAY);
@@ -191,11 +192,11 @@ bool TensorRTInference::ProcessInputOpenCV(const cv::Mat &img, const samplesComm
     return EXIT_SUCCESS;
 }
 
-bool TensorRTInference::ProcessInputNPPI(const cv::Mat &img, const samplesCommon::BufferManager &buffers)
+bool TensorRTInference::ProcessInputNPPI(const cv::Mat &img)
 {
     std::cout << "Choose Input NPPI " << std::endl;
 
-    float *deviceDataBuffer = static_cast<float *>(buffers.getDeviceBuffer(params_.inputTensorNames[0]));
+    float *deviceDataBuffer = static_cast<float *>(buffers_->getDeviceBuffer(params_.inputTensorNames[0]));
 
     unsigned char *org_device_data = nullptr;
     CHECK(cudaMalloc(&org_device_data, img.rows * img.cols * img.channels()));
@@ -239,7 +240,7 @@ bool TensorRTInference::ProcessInputNPPI(const cv::Mat &img, const samplesCommon
     }
 
     NppiSize dstsize = {resized_wid, resized_height};
-    NPP_CHECK(nppiConvert_8u32f_C3R((Npp8u *)resize_device_data, resized_wid * 3 * sizeof(uchar),
+    NPP_CHECK(nppiConvert_8u32f_C3R((Npp8u *)repeat_device_data, resized_wid * 3 * sizeof(uchar),
                                     (Npp32f *)deviceDataBuffer, resized_wid * 3 * sizeof(float), dstsize));
 
     cudaFree(org_device_data);
@@ -250,10 +251,10 @@ bool TensorRTInference::ProcessInputNPPI(const cv::Mat &img, const samplesCommon
     return EXIT_SUCCESS;
 }
 
-bool TensorRTInference::VerifyOutput(const samplesCommon::BufferManager &buffers)
+bool TensorRTInference::VerifyOutput()
 {
     const int outputSize = output_dims_.d[1];
-    float *output = static_cast<float *>(buffers.getHostBuffer(params_.outputTensorNames[0]));
+    float *output = static_cast<float *>(buffers_->getHostBuffer(params_.outputTensorNames[0]));
 
     int max_idx = -1;
     float max_prob = 0.0;

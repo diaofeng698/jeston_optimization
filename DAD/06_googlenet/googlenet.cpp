@@ -461,7 +461,7 @@ bool GoogleNet::processInputNPPI(const samplesCommon::BufferManager &buffers, st
     gettimeofday(&npp_tofloat_tv1, NULL);
 
     NppiSize dstsize = {resized_wid, resized_height};
-    NPP_CHECK(nppiConvert_8u32f_C3R((Npp8u *)resize_device_data, resized_wid * 3 * sizeof(uchar),
+    NPP_CHECK(nppiConvert_8u32f_C3R((Npp8u *)repeat_device_data, resized_wid * 3 * sizeof(uchar),
                                     (Npp32f *)deviceDataBuffer, resized_wid * 3 * sizeof(float), dstsize));
     /*End timer*/
     gettimeofday(&npp_tofloat_tv2, NULL);
