@@ -33,11 +33,12 @@ class TensorRTInference
     TensorRTInference(const string model_path, const string input_tensor_name, const string output_tensor_name);
     ~TensorRTInference();
     bool TensorRTBuild();
-    bool TensorRTInfer(const cv::Mat &img, PreprocessingCallbackFun callback_fun,
+    bool TensorRTInfer(PreprocessingCallbackFun preprocessing_call_fun,
+                       PostprocessingCallbackFun postprocessing_call_fun, const cv::Mat &img,
                        std::shared_ptr<TensorRTInference> temp);
     static bool ProcessInputOpenCV(const cv::Mat &img, std::shared_ptr<TensorRTInference> temp);
     static bool ProcessInputNPPI(const cv::Mat &img, std::shared_ptr<TensorRTInference> temp);
-    bool VerifyOutput();
+    static bool VerifyOutput(std::shared_ptr<TensorRTInference> temp);
 
   private:
     samplesCommon::OnnxSampleParams params_;

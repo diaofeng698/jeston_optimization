@@ -14,7 +14,8 @@ int main()
 
     cv::Mat input_frame = cv::imread(input_image_path);
 
-    if (DaD_net->TensorRTInfer(input_frame, TensorRTInference::ProcessInputNPPI, DaD_net))
+    if (DaD_net->TensorRTInfer(TensorRTInference::ProcessInputNPPI, TensorRTInference::VerifyOutput, input_frame,
+                               DaD_net))
     {
         std::cout << "Inference Failed " << std::endl;
         return EXIT_FAILURE;

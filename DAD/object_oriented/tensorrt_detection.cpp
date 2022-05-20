@@ -80,7 +80,8 @@ bool TensorRTInference::TensorRTBuild()
     return EXIT_SUCCESS;
 }
 
-bool TensorRTInference::TensorRTInfer(const cv::Mat &img, PreprocessingCallbackFun callback_fun,
+bool TensorRTInference::TensorRTInfer(PreprocessingCallbackFun preprocessing_call_fun,
+                                      PostprocessingCallbackFun postprocessing_call_fun, const cv::Mat &img,
                                       std::shared_ptr<TensorRTInference> temp)
 {
 
@@ -96,7 +97,7 @@ bool TensorRTInference::TensorRTInfer(const cv::Mat &img, PreprocessingCallbackF
 
     buffers_ = std::make_shared<samplesCommon::BufferManager>(engine_);
 
-    if (callback_fun(img, temp))
+    if (preprocessing_call_fun(img, temp))
     {
         std::cout << "Specify Correct Preprocess Method " << std::endl;
         return EXIT_FAILURE;
@@ -112,7 +113,7 @@ bool TensorRTInference::TensorRTInfer(const cv::Mat &img, PreprocessingCallbackF
     // Memcpy from device output buffers to host output buffers
     buffers_->copyOutputToHost();
 
-    if (VerifyOutput())
+    if (postprocessing_call_fun(temp))
     {
         return EXIT_FAILURE;
     }
@@ -212,10 +213,10 @@ bool TensorRTInference::ProcessInputNPPI(const cv::Mat &img, std::shared_ptr<Ten
     return EXIT_SUCCESS;
 }
 
-bool TensorRTInference::VerifyOutput()
+bool TensorRTInference::VerifyOutput(std::shared_ptr<TensorRTInference> temp)
 {
-    const int outputSize = output_dims_.d[1];
-    float *output = static_cast<float *>(buffers_->getHostBuffer(params_.outputTensorNames[0]));
+    const int outputSize = temp->output_dims_.d[1];
+    float *output = static_cast<float *>(temp->buffers_->getHostBuffer(temp->params_.outputTensorNames[0]));
 
     int max_idx = -1;
     float max_prob = 0.0;
@@ -235,7 +236,7 @@ bool TensorRTInference::VerifyOutput()
     sample::gLogInfo << " Prob " << std::fixed << std::setw(5) << std::setprecision(4) << output[max_idx] << " "
                      << "Class " << max_idx << std::endl;
 
-    inference_result.class_idx = max_idx;
-    inference_result.probability = output[max_idx];
+    temp->inference_result.class_idx = max_idx;
+    temp->inference_result.probability = output[max_idx];
     return EXIT_SUCCESS;
 }
