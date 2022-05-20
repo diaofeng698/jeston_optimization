@@ -25,29 +25,29 @@ struct TensorRTInferenceResult
 
 class TensorRTInference
 {
+    typedef bool (*PreprocessingCallbackFun)(const cv::Mat &, std::shared_ptr<TensorRTInference>);
+    typedef bool (*PostprocessingCallbackFun)(std::shared_ptr<TensorRTInference>);
+
   public:
     TensorRTInferenceResult inference_result;
-    TensorRTInference(const string model_path, const string input_tensor_name, const string output_tensor_name,
-                      const int preprocessing_method);
+    TensorRTInference(const string model_path, const string input_tensor_name, const string output_tensor_name);
     ~TensorRTInference();
     bool TensorRTBuild();
-    bool TensorRTInfer(const cv::Mat &img);
+    bool TensorRTInfer(const cv::Mat &img, PreprocessingCallbackFun callback_fun,
+                       std::shared_ptr<TensorRTInference> temp);
+    static bool ProcessInputOpenCV(const cv::Mat &img, std::shared_ptr<TensorRTInference> temp);
+    static bool ProcessInputNPPI(const cv::Mat &img, std::shared_ptr<TensorRTInference> temp);
+    bool VerifyOutput();
 
   private:
     samplesCommon::OnnxSampleParams params_;
     nvinfer1::Dims input_dims_;
     nvinfer1::Dims output_dims_;
-    int class_number_{0};
     int input_channel_{0};
     int input_height_{0};
     int input_width_{0};
     int input_batch_{0};
-    int preprocessing_method_{0};
     std::shared_ptr<nvinfer1::ICudaEngine> engine_;
     std::shared_ptr<nvinfer1::IExecutionContext> context_;
     std::shared_ptr<samplesCommon::BufferManager> buffers_;
-    bool ProcessInputTest();
-    bool ProcessInputOpenCV(const cv::Mat &img);
-    bool ProcessInputNPPI(const cv::Mat &img);
-    bool VerifyOutput();
 };

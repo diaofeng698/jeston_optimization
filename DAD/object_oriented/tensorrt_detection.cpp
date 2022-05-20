@@ -1,12 +1,11 @@
 #include "tensorrt_detection.h"
 
 TensorRTInference::TensorRTInference(const string model_path, const string input_tensor_name,
-                                     const string output_tensor_name, const int preprocessing_method)
+                                     const string output_tensor_name)
 {
     context_ = nullptr;
     engine_ = nullptr;
     buffers_ = nullptr;
-    preprocessing_method_ = preprocessing_method;
     params_.onnxFileName = model_path;
     params_.inputTensorNames.push_back(input_tensor_name);
     params_.outputTensorNames.push_back(output_tensor_name);
@@ -81,7 +80,8 @@ bool TensorRTInference::TensorRTBuild()
     return EXIT_SUCCESS;
 }
 
-bool TensorRTInference::TensorRTInfer(const cv::Mat &img)
+bool TensorRTInference::TensorRTInfer(const cv::Mat &img, PreprocessingCallbackFun callback_fun,
+                                      std::shared_ptr<TensorRTInference> temp)
 {
 
     if (!context_)
@@ -96,21 +96,7 @@ bool TensorRTInference::TensorRTInfer(const cv::Mat &img)
 
     buffers_ = std::make_shared<samplesCommon::BufferManager>(engine_);
 
-    if (preprocessing_method_ == 0)
-    {
-        if (ProcessInputOpenCV(img))
-        {
-            return EXIT_FAILURE;
-        }
-    }
-    else if (preprocessing_method_ == 1)
-    {
-        if (ProcessInputNPPI(img))
-        {
-            return EXIT_FAILURE;
-        }
-    }
-    else
+    if (callback_fun(img, temp))
     {
         std::cout << "Specify Correct Preprocess Method " << std::endl;
         return EXIT_FAILURE;
@@ -138,46 +124,47 @@ bool TensorRTInference::TensorRTInfer(const cv::Mat &img)
     return EXIT_SUCCESS;
 }
 
-bool TensorRTInference::ProcessInputOpenCV(const cv::Mat &img)
+bool TensorRTInference::ProcessInputOpenCV(const cv::Mat &img, std::shared_ptr<TensorRTInference> temp)
 {
     std::cout << "Choose Input OpenCV " << std::endl;
 
-    float *hostDataBuffer = static_cast<float *>(buffers_->getHostBuffer(params_.inputTensorNames[0]));
+    float *hostDataBuffer = static_cast<float *>(temp->buffers_->getHostBuffer(temp->params_.inputTensorNames[0]));
 
     cv::Mat gray_img;
     cv::cvtColor(img, gray_img, cv::COLOR_BGR2GRAY);
 
     cv::Mat resized_img;
-    cv::resize(gray_img, resized_img, cv::Size(input_height_, input_width_));
+    cv::resize(gray_img, resized_img, cv::Size(temp->input_height_, temp->input_width_));
 
-    for (int b = 0, volImg = input_channel_ * input_height_ * input_width_; b < input_batch_; b++)
+    for (int b = 0, volImg = temp->input_channel_ * temp->input_height_ * temp->input_width_; b < temp->input_batch_;
+         b++)
     {
-        for (int idx = 0, volChl = input_height_ * input_width_; idx < volChl; idx++)
+        for (int idx = 0, volChl = temp->input_height_ * temp->input_width_; idx < volChl; idx++)
         {
 
-            for (int c = 0; c < input_channel_; ++c)
+            for (int c = 0; c < temp->input_channel_; ++c)
             {
-                hostDataBuffer[b * volImg + idx * input_channel_ + c] = resized_img.data[idx];
+                hostDataBuffer[b * volImg + idx * temp->input_channel_ + c] = resized_img.data[idx];
             }
         }
     }
-    buffers_->copyInputToDevice();
+    temp->buffers_->copyInputToDevice();
 
     return EXIT_SUCCESS;
 }
 
-bool TensorRTInference::ProcessInputNPPI(const cv::Mat &img)
+bool TensorRTInference::ProcessInputNPPI(const cv::Mat &img, std::shared_ptr<TensorRTInference> temp)
 {
     std::cout << "Choose Input NPPI " << std::endl;
 
-    float *deviceDataBuffer = static_cast<float *>(buffers_->getDeviceBuffer(params_.inputTensorNames[0]));
+    float *deviceDataBuffer = static_cast<float *>(temp->buffers_->getDeviceBuffer(temp->params_.inputTensorNames[0]));
 
     unsigned char *org_device_data = nullptr;
     CHECK(cudaMalloc(&org_device_data, img.rows * img.cols * img.channels()));
     CHECK(cudaMemcpy(org_device_data, img.data, img.rows * img.cols * img.channels(), cudaMemcpyHostToDevice));
 
-    int resized_wid = input_width_;
-    int resized_height = input_height_;
+    int resized_wid = temp->input_width_;
+    int resized_height = temp->input_height_;
     bool bret = true;
 
     // step1:resize
