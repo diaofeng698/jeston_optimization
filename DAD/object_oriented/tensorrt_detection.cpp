@@ -9,7 +9,6 @@ TensorRTInference::TensorRTInference(const string model_path, const string input
     params_.onnxFileName = model_path;
     params_.inputTensorNames.push_back(input_tensor_name);
     params_.outputTensorNames.push_back(output_tensor_name);
-    TensorRTBuild();
 }
 
 TensorRTInference::~TensorRTInference()

@@ -12,6 +12,12 @@ int main()
 
     DaD_net = std::make_shared<TensorRTInference>(DaDModelPath, "input_1:0", "Identity:0");
 
+    if (DaD_net->TensorRTBuild())
+    {
+        std::cout << "Inference Engine Build Failed " << std::endl;
+        return EXIT_FAILURE;
+    }
+
     cv::Mat input_frame = cv::imread(input_image_path);
 
     if (DaD_net->TensorRTInfer(TensorRTInference::ProcessInputNPPI, TensorRTInference::VerifyOutput, input_frame,
